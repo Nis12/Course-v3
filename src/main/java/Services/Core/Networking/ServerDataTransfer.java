@@ -8,21 +8,21 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
 import rx.subjects.PublishSubject;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
+
 
 public class ServerDataTransfer {
 
     private int connectionID = -1;
 
-    private final PublishSubject<BufferedImage> sendBufferedImagePublishSubject;
+    private final PublishSubject<java.awt.image.BufferedImage> sendBufferedImagePublishSubject;
 
     private final PublishSubject<String> sendMessagePublishSubject = PublishSubject.create();
     private final PublishSubject<String> receiveMessagePublishSubject = PublishSubject.create();
 
     private final Encryption encryption = new Encryption();
 
-    public ServerDataTransfer(PublishSubject<BufferedImage> sendBufferedImagePublishSubject) {
+    public ServerDataTransfer(PublishSubject<java.awt.image.BufferedImage> sendBufferedImagePublishSubject) {
         this.sendBufferedImagePublishSubject = sendBufferedImagePublishSubject;
 
         Server server = new Server();
@@ -53,21 +53,22 @@ public class ServerDataTransfer {
     private void listenersSetup(Server server) {
         server.addListener(new Listener() {
             public void received (Connection connection, Object object) {
-                if (connectionID == -1) {
-                    connectionID = connection.getID();
-                    connection.sendTCP("Connect");
-                }
-                if (connectionID == connection.getID()) {
-                    if (object instanceof SendReciveObjects.ReceiveMessage) {
-                        SendReciveObjects.ReceiveMessage receiveMessage = (SendReciveObjects.ReceiveMessage)object;
-                        receiveMessagePublishSubject.onNext(encryption.readMessage(receiveMessage.encryptMessage));
+                if (connectionID == -1) connectionID = connection.getID();
 
-                    } else if (object instanceof SendReciveObjects.RSAPublicKey) {
-                        SendReciveObjects.RSAPublicKey publicKey = (SendReciveObjects.RSAPublicKey)object;
-                        encryption.initServerEncryption(publicKey.publicKey);
-                        SendReciveObjects.KeySpec keySpec = new SendReciveObjects.KeySpec();
+                if (connectionID == connection.getID()) {
+
+                    if (object instanceof SendReceiveObjects.Message) {
+                        SendReceiveObjects.Message message = (SendReceiveObjects.Message)object;
+                        receiveMessagePublishSubject.onNext(encryption.readMessage(message.encryptMessage));
+
+                    } else if (object instanceof SendReceiveObjects.RSAPublicKey) {
+                        SendReceiveObjects.RSAPublicKey publicKey = (SendReceiveObjects.RSAPublicKey)object;
+                        encryption.initServerEncryption(publicKey.encodedPublicKey);
+
+                        SendReceiveObjects.KeySpec keySpec = new SendReceiveObjects.KeySpec();
                         keySpec.keySpec = encryption.serverEncryption.DESKeyInRSACrypt();
                         connection.sendTCP(keySpec);
+
                     }
                 }
             }
@@ -77,13 +78,13 @@ public class ServerDataTransfer {
     private void subscribesSetup(Server server) {
 
         sendMessagePublishSubject.subscribe(message -> {
-            SendReciveObjects.ReceiveMessage receiveMessage = new SendReciveObjects.ReceiveMessage();
+            SendReceiveObjects.Message receiveMessage = new SendReceiveObjects.Message();
             receiveMessage.encryptMessage = encryption.writeMessage(message);
             server.sendToTCP(connectionID, receiveMessage);
         });
 
         sendBufferedImagePublishSubject.subscribe(bufferedImage -> {
-            SendReciveObjects.ReceiveBufferedImage receiveBufferedImage = new SendReciveObjects.ReceiveBufferedImage();
+            SendReceiveObjects.BufferedImage receiveBufferedImage = new SendReceiveObjects.BufferedImage();
             receiveBufferedImage.bufferedImage = bufferedImage;
             server.sendToUDP(connectionID, receiveBufferedImage);
         });
@@ -91,18 +92,10 @@ public class ServerDataTransfer {
 
     private void kryoRegisterSetup(Server server) {
         Kryo kryo = server.getKryo();
-        kryo.register(SendReciveObjects.SendMessage.class);
-        kryo.register(SendReciveObjects.ReceiveMessage.class);
-        kryo.register(SendReciveObjects.SendBufferedImage.class);
-        kryo.register(SendReciveObjects.ReceiveBufferedImage.class);
-        kryo.register(SendReciveObjects.RSAPublicKey.class);
-        kryo.register(SendReciveObjects.KeySpec.class);
-
-        kryo.register(sun.security.rsa.RSAPublicKeyImpl.class);
-        kryo.register(sun.security.x509.AlgorithmId.class);
-        kryo.register(sun.security.util.ObjectIdentifier.class);
-        kryo.register(sun.security.util.BitArray.class);
-        kryo.register(java.math.BigInteger.class);
+        kryo.register(SendReceiveObjects.Message.class);
+        kryo.register(SendReceiveObjects.BufferedImage.class);
+        kryo.register(SendReceiveObjects.RSAPublicKey.class);
+        kryo.register(SendReceiveObjects.KeySpec.class);
         kryo.register(byte[].class);
     }
 }

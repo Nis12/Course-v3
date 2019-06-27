@@ -3,6 +3,8 @@ package Services.Core.Encryption;
 import javax.crypto.NoSuchPaddingException;
 import javax.swing.*;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Objects;
 
 public class Encryption {
@@ -27,8 +29,15 @@ public class Encryption {
         clientEncryption = new ClientEncryption();
     }
 
-    public void initServerEncryption(PublicKey publicKey) {
-        serverEncryption = new ServerEncryption(publicKey);
+    public void initServerEncryption(byte[] encodedPublicKey) {
+        try {
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encodedPublicKey);
+            serverEncryption = new ServerEncryption(keyFactory.generatePublic(publicKeySpec));
+
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            JOptionPane.showConfirmDialog(new JDialog(), "Error\n" + e.getMessage());
+        }
     }
 
     public class ClientEncryption {
@@ -49,9 +58,7 @@ public class Encryption {
             rsaCrypt = new RSACrypt(keyPair.getPublic(), keyPair.getPrivate());
         }
 
-        public PublicKey getKeyPairPublicKey() {
-            return keyPair.getPublic();
-        }
+        public byte[] getKeyPairPublicKey() { return keyPair.getPublic().getEncoded(); }
 
         public void setSecretKeySpec(byte[] keySpec) {
             try {

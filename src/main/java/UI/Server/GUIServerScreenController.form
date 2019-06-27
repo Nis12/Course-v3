@@ -22,7 +22,9 @@
             <preferred-size width="150" height="50"/>
           </grid>
         </constraints>
-        <properties/>
+        <properties>
+          <editable value="false"/>
+        </properties>
       </component>
       <component id="a0e51" class="javax.swing.JTextArea" binding="userTextArea">
         <constraints>
@@ -30,7 +32,9 @@
             <preferred-size width="150" height="50"/>
           </grid>
         </constraints>
-        <properties/>
+        <properties>
+          <editable value="false"/>
+        </properties>
       </component>
     </children>
   </grid>

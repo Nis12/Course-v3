@@ -8,14 +8,13 @@ import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import rx.subjects.PublishSubject;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 
 public class ClientDataTransfer {
 
     private final PublishSubject<String> sendMessagePublishSubject = PublishSubject.create();
     private final PublishSubject<String> receiveMessagePublishSubject = PublishSubject.create();
-    private final PublishSubject<BufferedImage> receiveBufferedImagePublishSubject = PublishSubject.create();
+    private final PublishSubject<java.awt.image.BufferedImage> receiveBufferedImagePublishSubject = PublishSubject.create();
 
     private final Encryption encryption = new Encryption();
 
@@ -38,8 +37,8 @@ public class ClientDataTransfer {
             listenersSetup(client);
             subscribesSetup(client);
 
-            SendReciveObjects.RSAPublicKey publicKey = new SendReciveObjects.RSAPublicKey();
-            publicKey.publicKey = encryption.clientEncryption.getKeyPairPublicKey();
+            SendReceiveObjects.RSAPublicKey publicKey = new SendReceiveObjects.RSAPublicKey();
+            publicKey.encodedPublicKey = encryption.clientEncryption.getKeyPairPublicKey();
             client.sendTCP(publicKey);
 
         } catch (IOException e) {
@@ -56,7 +55,7 @@ public class ClientDataTransfer {
         return receiveMessagePublishSubject;
     }
 
-    public PublishSubject<BufferedImage> subscribeOnReceiveBufferedImagePublishSubject() {
+    public PublishSubject<java.awt.image.BufferedImage> subscribeOnReceiveBufferedImagePublishSubject() {
         return receiveBufferedImagePublishSubject;
     }
 
@@ -64,16 +63,16 @@ public class ClientDataTransfer {
         client.addListener(new Listener() {
             public void received (Connection connection, Object object) {
 
-                if (object instanceof SendReciveObjects.ReceiveMessage) {
-                    SendReciveObjects.ReceiveMessage receiveMessage = (SendReciveObjects.ReceiveMessage) object;
-                    receiveMessagePublishSubject.onNext(encryption.readMessage(receiveMessage.encryptMessage));
+                if (object instanceof SendReceiveObjects.Message) {
+                    SendReceiveObjects.Message message = (SendReceiveObjects.Message) object;
+                    receiveMessagePublishSubject.onNext(encryption.readMessage(message.encryptMessage));
 
-                } else if (object instanceof SendReciveObjects.ReceiveBufferedImage) {
-                    SendReciveObjects.ReceiveBufferedImage receiveBufferedImage = (SendReciveObjects.ReceiveBufferedImage) object;
-                    receiveBufferedImagePublishSubject.onNext(receiveBufferedImage.bufferedImage);
+                } else if (object instanceof SendReceiveObjects.BufferedImage) {
+                    SendReceiveObjects.BufferedImage bufferedImage = (SendReceiveObjects.BufferedImage) object;
+                    receiveBufferedImagePublishSubject.onNext(bufferedImage.bufferedImage);
 
-                } else if (object instanceof SendReciveObjects.KeySpec) {
-                    SendReciveObjects.KeySpec secretKeySpec = (SendReciveObjects.KeySpec) object;
+                } else if (object instanceof SendReceiveObjects.KeySpec) {
+                    SendReceiveObjects.KeySpec secretKeySpec = (SendReceiveObjects.KeySpec) object;
                     encryption.clientEncryption.setSecretKeySpec(secretKeySpec.keySpec);
 
                 }
@@ -83,7 +82,7 @@ public class ClientDataTransfer {
 
     private void subscribesSetup(Client client) {
         sendMessagePublishSubject.subscribe(message -> {
-            SendReciveObjects.SendMessage sendMessage = new SendReciveObjects.SendMessage();
+            SendReceiveObjects.Message sendMessage = new SendReceiveObjects.Message();
             sendMessage.encryptMessage = encryption.writeMessage(message);
             client.sendTCP(sendMessage);
         });
@@ -91,18 +90,10 @@ public class ClientDataTransfer {
 
     private void kryoRegisterSetup(Client client) {
         Kryo kryo = client.getKryo();
-        kryo.register(SendReciveObjects.SendMessage.class);
-        kryo.register(SendReciveObjects.ReceiveMessage.class);
-        kryo.register(SendReciveObjects.SendBufferedImage.class);
-        kryo.register(SendReciveObjects.ReceiveBufferedImage.class);
-        kryo.register(SendReciveObjects.RSAPublicKey.class);
-        kryo.register(SendReciveObjects.KeySpec.class);
-
-        kryo.register(sun.security.rsa.RSAPublicKeyImpl.class);
-        kryo.register(sun.security.x509.AlgorithmId.class);
-        kryo.register(sun.security.util.ObjectIdentifier.class);
-        kryo.register(sun.security.util.BitArray.class);
-        kryo.register(java.math.BigInteger.class);
+        kryo.register(SendReceiveObjects.Message.class);
+        kryo.register(SendReceiveObjects.BufferedImage.class);
+        kryo.register(SendReceiveObjects.RSAPublicKey.class);
+        kryo.register(SendReceiveObjects.KeySpec.class);
         kryo.register(byte[].class);
     }
 }
