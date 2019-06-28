@@ -3,7 +3,6 @@ package UI.Client;
 import Services.Core.Extensions.UIExtensions;
 
 import javax.swing.*;
-import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
@@ -12,7 +11,7 @@ public class GUIClientScreenController extends JFrame {
     private JPanel screenPanel;
     private JPanel messagePanel;
     private JTextField messageTextField;
-    private JTextArea messagesTextArea;
+    private JScrollPane messageScrollPane;
 
     private final ClientScreenModel model;
 
@@ -33,8 +32,7 @@ public class GUIClientScreenController extends JFrame {
 
     private void initUIComponents() {
         setTitle(model.localizeTitle());
-        messagesTextArea.setAutoscrolls(true);
-        messagesTextArea.setAlignmentX(TextArea.RIGHT_ALIGNMENT);
+        messageScrollPane.setAutoscrolls(true);
         getContentPane().add(mainPanel);
     }
 
@@ -45,19 +43,31 @@ public class GUIClientScreenController extends JFrame {
                 super.keyTyped(e);
                 if (e.getKeyChar() == KeyEvent.VK_ENTER) {
                     model.sendMessage(messageTextField.getText());
-                    messagesTextArea.append(messageTextField.getText());
-                    messagesTextArea.append("\n");
+                    addMessageInStoryList(messageTextField.getText(), false);
                     messageTextField.setText("");
                 }
             }
         });
     }
 
+    private void addMessageInStoryList(String message, boolean isReceive) {
+        mainPanel.add(new subPanel(message));
+    }
+
     private void subscribesSetup() {
-        model.receiveMessagePublishSubject().subscribe(message -> {
-            messagesTextArea.append(message);
-            messagesTextArea.append("\n");
-        });
+        model.receiveMessagePublishSubject().subscribe(message -> addMessageInStoryList(message,true));
+    }
+
+    private class subPanel extends JPanel {
+
+        subPanel me;
+
+        subPanel(String message) {
+            super();
+            me = this;
+            JLabel myLabel = new JLabel(message);
+            add(myLabel);
+        }
     }
 
     public static void main(String[] args) {
